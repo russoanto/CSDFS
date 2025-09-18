@@ -64,8 +64,17 @@ public class FileSystemClient {
                             System.out.println(ok ? "Written" : "Write failed");
                         }
                         break;
+		    case "rmdir":
+			if (tokens.length < 2) {
+			    System.out.println("Usage: rmdir <path>");
+			} else {
+			    String path = tokens[1];
+			    boolean ok = fs.rmdir(path);
+			    System.out.println(ok ? "Written" : "Write failed");
+			}
+			break;
 
-                    case "read":
+		case "read":
                         if (tokens.length != 2) {
                             System.out.println("Usage: read /file");
                         } else {

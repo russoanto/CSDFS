@@ -26,6 +26,11 @@ public class RemoteFileSystem extends UnicastRemoteObject implements FileSystemI
     public boolean write(String path, byte[] content) throws RemoteException {
         return fs.write(path, content);
     }
+    
+    public boolean rmdir(String path) throws RemoteException {
+        return fs.rmdir(path);
+    }
+    
     public boolean symlink(String target, String linkPath) throws RemoteException {
         return fs.symlink(target, linkPath);
     }
