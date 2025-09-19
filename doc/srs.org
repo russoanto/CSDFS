@@ -1,0 +1,22 @@
+* SRS CSDFS
+** Introduzione
+*** Scopo
+Fornire un file system distribuito accessibile da remoto tramite RMI, ispirato a NFS v3.
+** Descrizione generale
+*** Prospettiva del prodotto
+architettura client-server in cui
+- ~server~
+  esposizione di un istanza di ~RemoteFileSystem~ che espone le interfacce offerte dal file system virtuale
+- ~client~
+  interagiscono con il server sfruttando le interfacce remote messe a disposizione.
+*** Vincoli
+- Basato su Java RMI
+- Supporto di symlink dipendente dal sistema operativo
+** Requisiti specifici
+*** Funzionali
+
+** Architettura del sistema
+
+** Casi d'uso
+
+** Requisiti di interfaccia

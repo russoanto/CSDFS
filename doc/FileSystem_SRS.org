@@ -1,0 +1,187 @@
+#+TITLE: SRS - Simple Virtual File System
+#+AUTHOR: Russo Antonio
+
+* Introduzione
+** Scopo
+Il Virtual File System (VFS) fornisce un’astrazione di un file system gerarchico, implementato interamente in memoria e sincronizzato con un file system reale tramite la politica di *write-through*. 
+È stato progettato per offrire semplicità d’uso, modularità e per servire come base per l’estensione in contesto distribuito (tramite RMI).
+
+** Contesto
+Il sistema simula un file system classico di tipo UNIX, ma indipendente dal kernel e realizzato interamente in Java. 
+La struttura a nodi gerarchici permette di rappresentare directory, file e link simbolici. 
+Il VFS è pensato per essere modulare, estendibile e indipendente dalla piattaforma, con alcune limitazioni (es. supporto ai symlink dipendente dall’OS).
+
+- *Indipendente* da un vero file system a livello kernel
+- *Semplicita'* delle API per le principali operazioni di manipolazione
+  - *Creazione*: mkdir, mknod, symlink
+  - *Navigazione*: lookup, readdir, readlink
+  - *Manipolazione*: read, write, rename, rmdir
+
+** Definizioni e acronimi
+- VFS: Virtual File System
+- Node: rappresentazione astratta di un elemento del file system
+- Write-through: politica che sincronizza subito memoria e disco
+- Symlink: collegamento simbolico a un altro nodo
+- Hard link: collegamento multiplo che condivide lo stesso contenuto
+
+** Riferimenti
+- Specifiche NFSv3/NFSv4 (RFC)
+- Documentazione Java NIO
+- Manuale Java RMI
+
+* Descrizione Generale
+** Funzionalita' del prodotto
+Il sistema implementa le seguenti funzionalità, raggruppate per categoria.
+
+*** Creazione
+**** mkdir
+Creazione di una cartella.
+
+#+BEGIN_EXAMPLE
+>> mkdir <path>/nomecartella
+#+END_EXAMPLE
+
+**** mknod
+Creazione di un file.
+
+#+BEGIN_EXAMPLE
+>> mknod <path>/nomefile
+#+END_EXAMPLE
+
+**** symlink
+Creazione di un link simbolico, cioè un nodo che fa da puntatore a un altro "file" o "directory".
+
+#+BEGIN_EXAMPLE
+>> symlink <target> <linkPath>
+#+END_EXAMPLE
+
+*** Navigazione
+**** lookup
+Risoluzione di un path e restituzione del nodo corrispondente (seguendo eventuali symlink).
+
+#+BEGIN_EXAMPLE
+>> lookup <path>
+#+END_EXAMPLE
+
+**** readdir
+Elenco dei contenuti di una directory.
+
+#+BEGIN_EXAMPLE
+>> readdir <path>
+#+END_EXAMPLE
+
+**** readlink
+Restituisce il target di un link simbolico senza risolverlo.
+
+#+BEGIN_EXAMPLE
+>> readlink <path>
+#+END_EXAMPLE
+
+*** Manipolazione
+**** read
+Dato un path, la funzione restituisce i contenuti del file corrispondente.
+
+#+BEGIN_EXAMPLE
+>> read <path>
+#+END_EXAMPLE
+
+**** write
+Scrive contenuto su un file.
+
+#+BEGIN_EXAMPLE
+>> write <path> <content>
+#+END_EXAMPLE
+
+***** Consistenza
+La consistenza durante l'operazione di scrittura è gestita tramite lock (ReentrantReadWriteLock).
+
+***** Write-through
+Ogni modifica effettuata in memoria viene immediatamente riflessa sul filesystem reale montato come root.
+
+**** rename
+Funzione di rinomina di un nodo (file o directory).
+
+#+BEGIN_EXAMPLE
+>> rename <oldpath> <newpath>
+#+END_EXAMPLE
+
+**** rmdir
+Funzione per la cancellazione di directory vuote.
+
+#+BEGIN_EXAMPLE
+>> rmdir <path>
+#+END_EXAMPLE
+
+*** Gestione attributi
+**** getattr
+Restituisce metadati (nome, tipo, timestamp).
+
+#+BEGIN_EXAMPLE
+>> getattr <path>
+#+END_EXAMPLE
+
+**** setattr
+Permette di modificare attributi di un nodo (es. nome).
+
+#+BEGIN_EXAMPLE
+>> setattr <path> <attributo> <valore>
+#+END_EXAMPLE
+
+*** Gestione apertura/chiusura
+**** open
+Marca un file come aperto.
+
+#+BEGIN_EXAMPLE
+>> open <path>
+#+END_EXAMPLE
+
+**** close
+Chiude un file precedentemente aperto.
+
+#+BEGIN_EXAMPLE
+>> close <path>
+#+END_EXAMPLE
+
+** Requisiti non funzionali
+- *Consistenza*: lock per path con ReentrantReadWriteLock per prevenire race condition.
+- *Portabilità*: indipendente dall'OS, con limitazioni sui symlink.
+- *Affidabilità*: gestione errori in scrittura su disco (rollback in memoria).
+- *Sicurezza*: prevenzione path traversal al di fuori della root montata.
+- *Estendibilità*: possibile aggiungere nuovi tipi di nodi (es. DeviceNode).
+
+* Architettura
+** Scelta dell'albero
+Il VFS è implementato come una struttura ad albero con radice unica (/). 
+Questo modello rispecchia i file system reali (UNIX-like) e facilita la navigazione e la gestione delle operazioni ricorsive.
+
+** Componenti principali
+- Node (astratto): rappresenta un nodo generico con nome, timestamp, riferimento al padre.
+- DirectoryNode: rappresenta directory, contiene mappa di figli.
+- FileNode: rappresenta file, contiene byte[] data e hard link.
+- SymlinkNode: rappresenta un link simbolico.
+- FileSystem: gestisce operazioni sul VFS e write-through su disco reale.
+
+** Vantaggi dell'albero
+- Modello naturale per rappresentare un FS.
+- Navigazione semplice tramite traversal.
+- Supporto naturale ad operazioni ricorsive (es. tree).
+- Gestione chiara di symlink e hard link.
+
+* Protocolli interni
+** Flusso di un'operazione
+1. Parsing del path in token.
+2. Risoluzione dei nodi, seguendo eventuali symlink.
+3. Acquisizione lock (read/write).
+4. Esecuzione operazione in memoria.
+5. Aggiornamento del disco reale (write-through).
+6. Rilascio del lock.
+
+** Sicurezza
+Durante la risoluzione dei path viene controllato che non sia possibile uscire dalla root montata (protezione traversal).
+
+** Gestione errori
+In caso di eccezioni IO durante write-through, l'operazione viene comunque mantenuta in memoria, evitando perdita di dati e garantendo consistenza logica.
+
+* UML
+[[file:img/VFS_Detailed_UML.png]]
+
