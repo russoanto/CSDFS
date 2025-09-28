@@ -12,7 +12,7 @@ La struttura a nodi gerarchici permette di rappresentare directory, file e link 
 Il VFS è pensato per essere modulare, estendibile e indipendente dalla piattaforma, con alcune limitazioni (es. supporto ai symlink dipendente dall’OS).
 
 - *Indipendente* da un vero file system a livello kernel
-- *Semplicita'* delle API per le principali operazioni di manipolazione
+- *Semplicita'* delle API per le principali operazioni di 
   - *Creazione*: mkdir, mknod, symlink
   - *Navigazione*: lookup, readdir, readlink
   - *Manipolazione*: read, write, rename, rmdir
@@ -23,7 +23,7 @@ Il VFS è pensato per essere modulare, estendibile e indipendente dalla piattafo
 - Write-through: politica che sincronizza subito memoria e disco
 - Symlink: collegamento simbolico a un altro nodo
 - Hard link: collegamento multiplo che condivide lo stesso contenuto
-
+  
 ** Riferimenti
 - Specifiche NFSv3/NFSv4 (RFC)
 - Documentazione Java NIO
@@ -86,7 +86,7 @@ Dato un path, la funzione restituisce i contenuti del file corrispondente.
 #+END_EXAMPLE
 
 **** write
-Scrive contenuto su un file.
+Scrive una sequenza di bytes  su un file.
 
 #+BEGIN_EXAMPLE
 >> write <path> <content>
@@ -106,7 +106,7 @@ Funzione di rinomina di un nodo (file o directory).
 #+END_EXAMPLE
 
 **** rmdir
-Funzione per la cancellazione di directory vuote.
+Funzione per la cancellazione di directory *vuote.
 
 #+BEGIN_EXAMPLE
 >> rmdir <path>
@@ -143,9 +143,8 @@ Chiude un file precedentemente aperto.
 #+END_EXAMPLE
 
 ** Requisiti non funzionali
-- *Consistenza*: lock per path con ReentrantReadWriteLock per prevenire race condition.
+- *Consistenza*: lock per ~path~ con ReentrantReadWriteLock per prevenire race condition.
 - *Portabilità*: indipendente dall'OS, con limitazioni sui symlink.
-- *Affidabilità*: gestione errori in scrittura su disco (rollback in memoria).
 - *Sicurezza*: prevenzione path traversal al di fuori della root montata.
 - *Estendibilità*: possibile aggiungere nuovi tipi di nodi (es. DeviceNode).
 

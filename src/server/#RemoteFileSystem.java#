@@ -1,0 +1,54 @@
+ùpackage server;
+
+import java.rmi.server.UnicastRemoteObject;
+import java.rmi.RemoteException;
+import java.util.List;
+import java.util.Map;
+
+import shared.FileSystemInterface;
+import shared.fs.FileSystem;
+
+public class RemoteFileSystem extends UnicastRemoteObject implements FileSystemInterface {
+    private FileSystem fs;
+
+    public RemoteFileSystem(FileSystem fs) throws RemoteException {
+        this.fs = fs;
+    }
+
+    public boolean mkdir(String path) throws RemoteException {
+        return fs.mkdir(path);
+    }
+
+    public boolean mknod(String path) throws RemoteException {
+        return fs.mknod(path);
+    }
+
+    public boolean write(String path, byte[] content) throws RemoteException {
+        return fs.write(path, content);
+    }
+    
+    public boolean rmdir(String path) throws RemoteException {
+        return fs.rmdir(path);
+    }
+    
+    public boolean symlink(String target, String linkPath) throws RemoteException {
+        return fs.symlink(target, linkPath);
+    }
+
+    public boolean rename(String oldPath, String newPath) throws  RemoteException {
+	return fs.rename(oldPath, newPath);
+
+    }
+    
+    public byte[] read(String path) throws RemoteException {
+        return fs.read(path);
+    }
+
+    public List<String> readdir(String path) throws RemoteException {
+        return fs.readdir(path);
+    }
+
+    public Map<String, Object> getattr(String path) throws RemoteException {
+        return fs.getattr(path);
+    }
+}

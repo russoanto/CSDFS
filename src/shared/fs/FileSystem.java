@@ -29,7 +29,10 @@ public class FileSystem {
         root = new DirectoryNode("/");
         root.parent = null;
     }
-
+    /*
+     * Given a path create, if it isn't present, the correponding Reetran lock
+     * otherwise return the already created lock for the specified path
+     */
     private ReentrantReadWriteLock getLock(String path) {
         return locks.computeIfAbsent(path, p -> new ReentrantReadWriteLock());
     }
@@ -235,6 +238,7 @@ public class FileSystem {
         attr.put("type", node.getClass().getSimpleName());
         attr.put("createdAt", node.createdAt);
         attr.put("modifiedAt", node.modifiedAt);
+	attr.put("isOpen", node.isOpen);
         return attr;
     }
 
@@ -248,19 +252,16 @@ public class FileSystem {
         return false;
     }
 
-    public byte[] read(String path) {
-        ReentrantReadWriteLock lock = getLock(path);
-        lock.readLock().lock();
-        try {
-            Node node = resolve(path, true);
-            return (node instanceof FileNode) ? ((FileNode) node).read() : null;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    public boolean write(String path, byte[] content) {
-        ReentrantReadWriteLock lock = getLock(path);
+        /*
+     * Write fucction that apply the secified changes (content) to the file (path)
+     * The function apply two type of write
+     * - in memory: update the tree data structure, thus a logical update
+     * - write-through: update the effective file on the file system
+     * This function require a critical section for menaging multiple threads (client or peer) that want write simultanously on the same path (file)
+     * In that case  ReentrantReadWriteLock guarantee that can be only one thred per time that can write on a specific file.
+     */
+    public  boolean write(String path, byte[] content) {
+	ReentrantReadWriteLock lock = getLock(path);
         lock.writeLock().lock();
         try {
             Node node = resolve(path, true);
@@ -291,35 +292,57 @@ public class FileSystem {
             lock.writeLock().unlock();
         }
     }
-
+    
+    /*
+     * return a byte array corresponding to the content of the file path
+     * The read operation are menaged with ReentrantReadWriteLock, in that way multiple threads can read the same file at the sime time,
+     * but a thread can't read file that are locked by a write function.
+     */
+    public  byte[] read(String path) {
+        ReentrantReadWriteLock lock = getLock(path);
+        lock.readLock().lock();
+	try {
+	    Node node = resolve(path, true);
+	    return (node instanceof FileNode) ? ((FileNode) node).read() : null;
+	} finally {
+	    lock.readLock().unlock();
+	}
+    }
+    
     private boolean removeNode(String path) {
-        String[] parts = tokenize(path);
-        String name = parts[parts.length - 1];
-        DirectoryNode parent = (DirectoryNode) resolveParent(path);
-        if (parent == null) return false;
+	ReentrantReadWriteLock lock = getLock(path);
+        lock.writeLock().lock();
+	try{
+	    String[] parts = tokenize(path);
+	    String name = parts[parts.length - 1];
+	    DirectoryNode parent = (DirectoryNode) resolveParent(path);
+	    if (parent == null) return false;
 
-        Node victim = parent.children.get(name);
-        if (victim == null) return false;
+	    Node victim = parent.children.get(name);
+	    if (victim == null) return false;
 
-        // ⬇️ write-through: elimina su disco prima
-        if (writeThrough && mountedRoot != null) {
-            try {
-                Path rp = realPath(path);
-                if (victim instanceof DirectoryNode) {
-                    // directory: ci aspettiamo sia vuota (già verificato in rmdir)
-                    Files.delete(rp);
-                } else {
-                    Files.deleteIfExists(rp);
-                }
-            } catch (IOException e) {
-                System.err.println("delete write-through failed for " + path + ": " + e.getMessage());
-                return false;
-            }
-        }
+	    // write-through: elimina su disco prima
+	    if (writeThrough && mountedRoot != null) {
+		try {
+		    Path rp = realPath(path);
+		    if (victim instanceof DirectoryNode) {
+			// directory: ci aspettiamo sia vuota (già verificato in rmdir)
+			Files.delete(rp);
+		    } else {
+			Files.deleteIfExists(rp);
+		    }
+		} catch (IOException e) {
+		    System.err.println("delete write-through failed for " + path + ": " + e.getMessage());
+		    return false;
+		}
+	    }
 
-        // aggiornamento in memoria
-        parent.children.remove(name);
-        return true;
+	    // aggiornamento in memoria
+	    parent.children.remove(name);
+	    return true;
+	}finally{
+	    lock.writeLock().unlock();
+	}
     }
 
     public static FileSystem mount(String rootPath) {

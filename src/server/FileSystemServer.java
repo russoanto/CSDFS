@@ -9,7 +9,7 @@ import shared.FileSystemInterface;
 public class FileSystemServer {
     public static void main(String[] args) {
         try {
-            String rootPath = "../root_file_system";  // o "./testdir"
+            String rootPath = "../root_file_system"; 
             FileSystem fs = FileSystem.mount(rootPath);
 
             FileSystemInterface stub = new RemoteFileSystem(fs);

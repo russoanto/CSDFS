@@ -8,6 +8,7 @@ server/RemoteFileSystem.java
 server/FileSystemServer.java
 client/FileSystemClient.java
 test/TestConcurrentWrite.java
+test/TestOpenClose.java
 ./client/FileSystemClient.java
 ./server/RemoteFileSystem.java
 ./server/FileSystemServer.java
@@ -18,3 +19,4 @@ test/TestConcurrentWrite.java
 ./shared/fs/FileNode.java
 ./shared/FileSystemInterface.java
 ./test/TestConcurrentWrite.java
+./test/TestOpenClose.java

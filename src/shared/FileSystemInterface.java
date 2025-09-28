@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface FileSystemInterface extends Remote {
+    
     boolean mkdir(String path) throws RemoteException;
     boolean mknod(String path) throws RemoteException;
     boolean write(String path, byte[] content) throws RemoteException;
