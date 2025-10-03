@@ -42,16 +42,75 @@ In questo caso, il contenuto viene caricato ricorsivamente:
 
 La root del VFS viene rinominata “/”, e ogni operazione successiva (scrittura, rinomina, rimozione) viene riflessa anche sulla directory reale tramite write-through.  
 
-* Funzionalità
-Il DVFS mette a disposizione un set completo di operazioni:  
+* Requisiti Funzionali
+Il Distributed Virtual File System (DVFS) mette a disposizione un set completo di operazioni
+che riproducono le funzionalità tipiche di un file system UNIX, garantendo trasparenza tra accesso
+locale e remoto. Le API sono organizzate in cinque categorie principali:
 
-- *Creazione*: mkdir, mknod, symlink, link.  
-- *Navigazione*: lookup, readdir, readlink.  
-- *Manipolazione*: read, write, rename, rmdir.  
-- *Gestione attributi*: getattr, setattr.  
-- *Gestione apertura/chiusura*: open, close.  
+** Creazione
+Le operazioni di creazione consentono di introdurre nuove entità nel file system:
+- =mkdir(path)=: crea una nuova directory all’interno del percorso specificato.
+- =mknod(path)=: crea un nuovo file vuoto, pronto per essere scritto.
+- =symlink(target, linkPath)=: crea un link simbolico che punta ad un file o directory esistente.
 
-Inoltre, lato client è disponibile il comando *edit*, che consente di modificare un file remoto con un editor locale in maniera trasparente.  
+Queste operazioni sono tutte soggette a controlli di integrità: prima della creazione
+viene verificato che il path non esista già e che il parent directory sia presente.
+
+** Navigazione
+Le operazioni di navigazione permettono all’utente o al client di esplorare la struttura del file system:
+- =lookup(path)=: risolve un percorso e restituisce il nodo corrispondente se esiste.
+- =readdir(path)=: restituisce la lista di file e directory contenuti in una directory.
+- =readlink(path)=: nel caso di un symlink, restituisce il target a cui il link punta.
+
+Queste operazioni non modificano lo stato del sistema e sono protette da lock di lettura concorrente.
+
+** Manipolazione
+Le operazioni di manipolazione permettono la modifica dello stato del file system:
+- =read(path)=: legge il contenuto di un file e restituisce i byte.
+- =write(path, content)=: scrive dati in un file, sovrascrivendo il contenuto precedente. È garantita la
+  consistenza tramite lock e write-through su disco.
+- =rename(oldPath, newPath)=: rinomina un file o directory, spostandolo eventualmente in un’altra directory.
+- =rmdir(path)=: rimuove una directory vuota.
+
+Queste operazioni sono serializzate tramite lock a livello di path per prevenire race condition.
+La scrittura è sempre atomica: avviene prima in memoria e subito dopo su disco.
+
+** Gestione attributi
+Le operazioni sugli attributi forniscono informazioni di metadati o consentono modifiche limitate:
+- =getattr(path)=: restituisce metadati come nome, tipo (file, dir, symlink), timestamp di creazione e modifica.
+- =setattr(path, attr, value)=: modifica un attributo specifico, ad esempio il nome.
+
+---
+L’insieme di queste operazioni rende il DVFS un file system distribuito completo,
+capace di supportare sia operazioni basilari (creazione e lettura) che funzionalità avanzate
+(gestione symlink, attributi, apertura/chiusura).  
+* Requisiti non funzionali
+** Scalabilità
+Il modello client-server centralizzato non è intrinsecamente scalabile.
+Il server rappresenta un collo di bottiglia: all’aumentare del numero di
+client connessi cresce il carico di richieste che devono essere gestite
+da un singolo nodo.
+
+** Disponibilità
+Il sistema presenta un *single point of failure*: se il server non è
+raggiungibile, l’intera rete di client perde accesso al file system.
+È necessaria la presenza di meccanismi di riavvio rapido o replica futura.
+
+** Prestazioni
+- Le operazioni devono avere latenza comparabile ad accessi RMI standard.
+- Le scritture sono serializzate: questo garantisce consistenza, ma può
+  ridurre il throughput in scenari con molti client concorrenti.
+
+** Usabilità
+Il client fornisce una CLI con comandi noti (mkdir, ls, read, write, edit),
+garantendo un’interazione familiare per l’utente, simile ad un file system UNIX.
+
+** Sicurezza
+- Protezione da path traversal: il server impedisce accessi fuori dalla root montata.
+- Gli errori vengono gestiti e propagati come eccezioni RMI.
+- Non sono previsti meccanismi di autenticazione o autorizzazione: si assume
+un ambiente controllato.
+
 
 * Protocolli
 La comunicazione tra client e server avviene tramite *Java RMI*.  
@@ -73,51 +132,8 @@ Le invocazioni remote sono trasparenti: il client invoca metodi sull’interfacc
 - Gli errori lato server vengono propagati al client come eccezioni RMI.  
 
 ** Diagramma UML delle classi
-#+BEGIN_SRC plantuml :file dvfs_classes.png :exports results
-@startuml
-interface FileSystemInterface {
-  + mkdir(path)
-  + mknod(path)
-  + write(path, content)
-  + read(path)
-  + readdir(path)
-  + symlink(target, linkPath)
-  + getattr(path)
-}
 
-class FileSystem {
-  - DirectoryNode root
-  - Path mountedRoot
-  + mkdir()
-  + mknod()
-  + write()
-  + read()
-  + readdir()
-  + symlink()
-  + link()
-  + rename()
-  + rmdir()
-  + getattr()
-  + setattr()
-  + open()
-  + close()
-}
 
-class RemoteFileSystem implements FileSystemInterface
-class FileSystemServer
-class FileSystemClient
-
-FileSystemServer --> RemoteFileSystem
-RemoteFileSystem --> FileSystem
-FileSystemClient --> FileSystemInterface
-@enduml
-#+END_SRC
-
-* Protocolli usati
-Il sistema utilizza Java RMI come protocollo client-server:
-- I client invocano metodi remoti sull’oggetto RemoteFileSystem.
-- Il server centralizza la gestione dei lock e della consistenza.
-- I client non comunicano direttamente tra loro (no peer-to-peer).
-
+[[./img/uml_classi.png]]
 
 
