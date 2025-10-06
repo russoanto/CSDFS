@@ -6,8 +6,7 @@ Il progetto permette a più client di interagire con un file system remoto come 
 ---
 
 ## Requisiti
-
-- **Java 11+** (javac, java)
+- **openjdk** 25.0.1 2025-09-16
 - **bash** (per gli script di build e run)
 
 ---
